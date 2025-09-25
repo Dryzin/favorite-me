@@ -1,0 +1,189 @@
+<body>
+  <h1>Ficha de Presentes</h1>
+
+  <form id="userForm">
+    <section>
+      <h2>Ficha do Usuário</h2>
+      <div class="form-grid">
+        <div>
+          <label>Nome:</label>
+          <input type="text" id="nome" required />
+        </div>
+
+        <div>
+          <label>Idade:</label>
+          <input type="number" id="idade" required />
+        </div>
+
+        <div>
+          <label>Tamanho da Camiseta:</label>
+          <input type="text" id="camiseta" required />
+        </div>
+
+        <div>
+          <label>Tamanho da Calça:</label>
+          <input type="text" id="calca" required />
+        </div>
+
+        <div>
+          <label>Tamanho do Sapato:</label>
+          <input type="text" id="sapato" required />
+        </div>
+
+        <div>
+          <label>Cor Favorita:</label>
+          <input type="text" id="cor" />
+        </div>
+
+        <div>
+          <label>Cor de Roupa Favorita:</label>
+          <input type="text" id="corRoupa" />
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Produtos que Estou de Olho 🎁</h2>
+      <div class="product-grid">
+        <div class="product-box">
+          <label>Produto 1</label>
+          <input type="url" id="produto1" placeholder="Cole aqui o link do produto" />
+        </div>
+        <div class="product-box">
+          <label>Produto 2</label>
+          <input type="url" id="produto2" />
+        </div>
+        <div class="product-box">
+          <label>Produto 3</label>
+          <input type="url" id="produto3" />
+        </div>
+        <div class="product-box">
+          <label>Produto 4</label>
+          <input type="url" id="produto4" />
+        </div>
+        <div class="product-box">
+          <label>Produto 5</label>
+          <input type="url" id="produto5" />
+        </div>
+        <div class="product-box">
+          <label>Produto 6</label>
+          <input type="url" id="produto6" />
+        </div>
+        <div class="product-box">
+          <label>Produto 7</label>
+          <input type="url" id="produto7" />
+        </div>
+        <div class="product-box">
+          <label>Produto 8</label>
+          <input type="url" id="produto8" />
+        </div>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="submit">Salvar Ficha</button>
+        <a id="linkVisualizar" href="#" target="_blank">Ver como seus amigos irão ver seu perfil</a>
+
+      <button type="button" onclick="compartilhar()">Compartilhar Perfil</button>
+      <button type="button" onclick="logout()">Sair</button>
+    </div>
+  </form>
+
+<script type="module">
+  import { auth, database } from "./js/connection.js";
+  import { ref, set, get } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+  import { logout } from "./js/function.js";
+
+  window.logout = logout;
+
+  document.getElementById("userForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Você precisa estar logado.");
+      return;
+    }
+
+    const userId = user.uid;
+    const dbRef = ref(database, "usuarios/" + userId);
+
+    const formData = {
+      nome: document.getElementById("nome").value.trim(),
+      idade: document.getElementById("idade").value.trim(),
+      camiseta: document.getElementById("camiseta").value.trim(),
+      calca: document.getElementById("calca").value.trim(),
+      sapato: document.getElementById("sapato").value.trim(),
+      cor: document.getElementById("cor").value.trim(),
+      corRoupa: document.getElementById("corRoupa").value.trim(),
+      produtos: []
+    };
+
+    for (let i = 1; i <= 8; i++) {
+      const link = document.getElementById(`produto${i}`).value.trim();
+      if (link) formData.produtos.push(link);
+    }
+
+    try {
+      await set(dbRef, formData);
+      alert("✅ Ficha salva com sucesso!");
+    } catch (error) {
+      alert("Erro ao salvar: " + error.message);
+    }
+  });
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      alert("Você precisa estar logado.");
+      window.location.href = "login.html";
+      return;
+    }
+
+    const dbRef = ref(database, "usuarios/" + user.uid);
+    const snapshot = await get(dbRef);
+    if (!snapshot.exists()) return;
+
+    const data = snapshot.val();
+    document.getElementById("nome").value = data.nome || "";
+    document.getElementById("idade").value = data.idade || "";
+    document.getElementById("camiseta").value = data.camiseta || "";
+    document.getElementById("calca").value = data.calca || "";
+    document.getElementById("sapato").value = data.sapato || "";
+    document.getElementById("cor").value = data.cor || "";
+    document.getElementById("corRoupa").value = data.corRoupa || "";
+
+    if (data.produtos && Array.isArray(data.produtos)) {
+      data.produtos.forEach((link, index) => {
+        const input = document.getElementById(`produto${index + 1}`);
+        if (input) input.value = link;
+      });
+    }
+
+    const linkVisualizar = document.getElementById("linkVisualizar");
+    if (linkVisualizar) {
+      linkVisualizar.href = `${window.location.origin}/visualizar.html?uid=${user.uid}`;
+    }
+  });
+
+  async function compartilhar() {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Você precisa estar logado para compartilhar seu perfil.");
+      return;
+    }
+
+    const uid = user.uid;
+    const urlParaCompartilhar = `${window.location.origin}/visualizar.html?uid=${uid}`;
+
+    try {
+      await navigator.clipboard.writeText(urlParaCompartilhar);
+      alert("Link do perfil copiado para a área de transferência:\n" + urlParaCompartilhar);
+    } catch (err) {
+      alert("Erro ao copiar o link: " + err);
+    }
+  }
+
+  window.compartilhar = compartilhar;
+</script>
+
+</body>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ficha do Usuário</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gradient-to-br from-red-900 to-red-500 min-h-screen text-white font-sans">
+  <div class="max-w-6xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-8 text-center">Meus Produtos Favoritos</h1>
+
+    <div class="grid md:grid-cols-2 gap-8 items-start">
+
+      <div class="bg-white/10 backdrop-blur-md p-6 rounded-xl shadow-md space-y-4">
+
+        <div class="bg-white/80 rounded-xl p-3 mb-8 flex flex-col items-center" id="avatarContainer">
+
+          <!--Só deve aparecer quando passar o mouse imagem dentro do avatarContainer-->
+          <button id="btnAlterarAvatar" class="mt-2 text-sm text-red-900 underline cursor-pointer p-1 rounded-md bg-white/50">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.6077 1.45948C11.2821 1.12117 10.8408 0.931152 10.3807 0.931152C9.92061 0.931152 9.47933 1.12117 9.15374 1.45948L1.36481 9.56537C1.14176 9.79619 0.964908 10.0708 0.84448 10.3732C0.724053 10.6756 0.662443 10.9998 0.663215 11.3272V12.3504C0.663215 12.4826 0.713671 12.6093 0.803484 12.7028C0.893296 12.7963 1.01511 12.8488 1.14212 12.8488H2.12532C2.43984 12.8497 2.75142 12.7857 3.04202 12.6605C3.33261 12.5352 3.59645 12.3512 3.81825 12.1191L11.6077 4.01276C11.9326 3.67395 12.1151 3.21481 12.1151 2.73612C12.1151 2.25743 11.9326 1.79829 11.6077 1.45948ZM3.14108 11.4144C2.87097 11.6936 2.50603 11.8509 2.12532 11.852H1.62103V11.3272C1.62054 11.1308 1.6575 10.9362 1.72976 10.7548C1.80202 10.5733 1.90814 10.4086 2.04199 10.2701L7.95313 4.11842L9.05461 5.26472L3.14108 11.4144ZM10.93 3.30803L9.72987 4.5575L8.62838 3.41369L9.829 2.16421C9.90133 2.08911 9.98716 2.02956 10.0816 1.98898C10.176 1.9484 10.2772 1.92757 10.3794 1.92768C10.4816 1.9278 10.5827 1.94886 10.6771 1.98966C10.7714 2.03045 10.8571 2.09019 10.9293 2.16546C11.0015 2.24073 11.0587 2.33005 11.0977 2.42833C11.1367 2.52661 11.1567 2.63192 11.1566 2.73825C11.1565 2.84458 11.1362 2.94984 11.097 3.04803C11.0578 3.14622 11.0004 3.23542 10.9281 3.31052L10.93 3.30803Z" fill="#D06868"/>
+            </svg>
+          </button>
+
+          <img src="./assets/avatar/avatar_01.png" alt="Avatar" class="w-40 h-40 rounded-xl object-contain px-4" id="avatarPreview">
+          <input type="file" id="avatarUpload" class="hidden" accept="image/*">
+          <p class="text-2xl font-semibold text-red-900 backdrop-blur-md"><span id="nome"></span></p>
+        </div>
+
+        <div id="perfil" class="space-y-2 text-lg">
+          <p><strong>Idade:</strong> <span id="idade"></span></p>
+          <p><strong>Camiseta:</strong> <span id="camiseta"></span></p>
+          <p><strong>Calça:</strong> <span id="calca"></span></p>
+          <p><strong>Sapato:</strong> <span id="sapato"></span></p>
+          <p><strong>Cor favorita:</strong> <span id="cor"></span></p>
+          <p><strong>Cor de roupa favorita:</strong> <span id="corRoupa"></span></p>
+        </div>
+
+        <div id="favoritarContainer" class="hidden mt-4">
+          <button id="btnFavoritar" class="text-2xl bg-transparent border-none cursor-pointer">♡</button>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Produtos desejados</h2>
+        <div id="produtos" class="grid grid-cols-3 gap-4">
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" onclick="compartilhar()">Compartilhar Perfil</button>
+      <button type="button" onclick="logout()">Sair</button>
+    </div>
+
+    <div id="acoesUsuario" class="mt-10 flex justify-end gap-4 hidden">
+      <a href="#" id="meuPerfil" class="text-sm underline">Meu perfil</a>
+      <a href="cadastrar.html" id="editarPerfil" class="text-sm underline hidden">📝 Editar ou cadastrar</a>
+    </div>
+
+
+  </div>
+
+  <script type="module">
+    import { auth, database } from "./js/connection.js";
+    import { ref, set, get } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+    import { logout } from "./js/function.js";
+
+    window.logout = logout;
+
+    const params = new URLSearchParams(window.location.search);
+    const uid = params.get("uid");
+    let usuarioLogadoUid = null;
+
+    if (uid) {
+      const dbRef = ref(database, "usuarios/" + uid);
+      get(dbRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          const dados = snapshot.val();
+          preencherFicha(dados);
+        } else {
+          alert("Perfil não encontrado.");
+        }
+      }).catch((error) => {
+        console.error("Erro ao buscar dados:", error);
+        alert("Não está logado.");
+      });
+    } else {
+      alert("ID do perfil não especificado.");
+    }
+
+    function preencherFicha(dados) {
+      document.getElementById("nome").textContent = dados.nome || "-";
+      document.getElementById("idade").textContent = dados.idade || "-";
+      document.getElementById("camiseta").textContent = dados.camiseta || "-";
+      document.getElementById("calca").textContent = dados.calca || "-";
+      document.getElementById("sapato").textContent = dados.sapato || "-";
+      document.getElementById("cor").textContent = dados.cor || "-";
+      document.getElementById("corRoupa").textContent = dados.corRoupa || "-";
+
+      const produtos = dados.produtos || [];
+      const produtosContainer = document.getElementById("produtos");
+      produtosContainer.innerHTML = "";
+
+      if (produtos.length > 0) {
+        produtos.slice(0, 6).forEach((link, i) => {
+          const card = document.createElement("a");
+          card.href = link;
+          card.target = "_blank";
+          card.className = "bg-white/10 hover:bg-white/20 transition p-4 rounded-lg shadow-md text-white flex items-center justify-center text-center h-32";
+          card.textContent = `Produto ${i + 1}`;
+          produtosContainer.appendChild(card);
+        });
+      } else {
+        produtosContainer.innerHTML = "<p class='text-sm text-white/70'>Nenhum produto adicionado ainda.</p>";
+      }
+    }
+
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        usuarioLogadoUid = user.uid;
+        document.getElementById("acoesUsuario").style.display = "flex";
+        const meuPerfilBtn = document.getElementById("meuPerfil");
+        meuPerfilBtn.href = `visualizar.html?uid=${user.uid}`;
+
+        if (user.uid === uid) {
+          document.getElementById("meuPerfil").style.display = "none";
+          document.getElementById("editarPerfil").style.display = "block";
+        }
+      }
+    });
+  </script>
+</body>
+</html>

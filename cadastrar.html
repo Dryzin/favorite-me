@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minha Ficha</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-[#A63838] min-h-screen text-white font-sans">
+  <div class="flex flex-col items-center px-4 py-10">
+    <!-- Avatar -->
+    <div class="bg-white rounded-xl p-3 mb-8">
+      <img src="./assets/avatar/avatar_01.png" alt="Avatar" class="w-40 h-40 rounded-xl object-contain px-4" id="avatarPreview">
+      <button class="block w-full mt-2 text-sm text-center text-red-800 underline hover:text-red-800" id="trocarAvatarBtn">Trocar Avatar</button>
+      <input type="file" id="avatarUpload" class="hidden" accept="image/*">
+    </div>
+
+    <!-- Formulário -->
+    <form id="userForm" class="w-full max-w-md space-y-8">
+      <!-- Campos do formulário -->
+      <div>
+        <label for="nome" class="block text-xl font-semibold mb-2">Como devemos chamá-lo?</label>
+        <input type="text" id="nome" required placeholder="Informe nome de usuário" class="w-full bg-transparent border-b border-white py-2 placeholder-white focus:outline-none" />
+      </div>
+      <div>
+        <label for="idade" class="block text-xl font-semibold mb-2">Idade</label>
+        <input type="number" id="idade" required placeholder="Ex: 25" class="w-full bg-transparent border-b border-white py-2 placeholder-white focus:outline-none" />
+      </div>
+      <div>
+        <label for="camiseta" class="block text-xl font-semibold mb-2">Tamanho da Camiseta</label>
+        <input type="text" id="camiseta" required placeholder="Ex: M, G, 12, etc." class="w-full bg-transparent border-b border-white py-2 placeholder-white focus:outline-none" />
+      </div>
+      <div>
+        <label for="calca" class="block text-xl font-semibold mb-2">Tamanho da Calça</label>
+        <input type="text" id="calca" required placeholder="Ex: 38, M, etc." class="w-full bg-transparent border-b border-white py-2 placeholder-white focus:outline-none" />
+      </div>
+      <div>
+        <label for="sapato" class="block text-xl font-semibold mb-2">Tamanho do Sapato</label>
+        <input type="text" id="sapato" required placeholder="Ex: 36, 40, etc." class="w-full bg-transparent border-b border-white py-2 placeholder-white focus:outline-none" />
+      </div>
+      <div>
+        <label for="cor" class="block text-xl font-semibold mb-2">Qual sua cor favorita?</label>
+        <input type="text" id="cor" placeholder="Exemplo: Azul" class="w-full bg-transparent border-b border-white py-2 placeholder-white focus:outline-none" />
+      </div>
+      <div>
+        <label for="corRoupa" class="block text-xl font-semibold mb-2">Cor de roupa favorita</label>
+        <input type="text" id="corRoupa" placeholder="Exemplo: Preto" class="w-full bg-transparent border-b border-white py-2 placeholder-white focus:outline-none" />
+      </div>
+    </form>
+
+    <!-- Botão "Ver Meu Perfil" (fora do form) -->
+    <div class="w-full max-w-md pt-8 text-center">
+      <a id="viewProfileLink" href="#" class="bg-white text-red-600 px-8 py-3 rounded-full font-semibold hover:bg-white/90 transition-all duration-300 inline-block w-full max-w-xs">
+        Ver Meu Perfil
+      </a>
+    </div>
+  </div>
+
+  <script type="module">
+    // Importações do Firebase
+    import { auth, database } from "./js/connection.js";
+    import { ref, set, get } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+    import { uploadBytes, getDownloadURL, ref as storageRef } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+
+    // Elementos do DOM
+    const userForm = document.getElementById("userForm");
+    const avatarPreview = document.getElementById("avatarPreview");
+    const avatarUpload = document.getElementById("avatarUpload");
+    const trocarAvatarBtn = document.getElementById("trocarAvatarBtn");
+    const viewProfileLink = document.getElementById("viewProfileLink");
+
+    let currentUser = null;
+    let saveTimeout;
+
+    // Função para carregar os dados do usuário no formulário
+    const loadUserData = (data) => {
+      document.getElementById("nome").value = data.nome || "";
+      document.getElementById("idade").value = data.idade || "";
+      document.getElementById("camiseta").value = data.camiseta || "";
+      document.getElementById("calca").value = data.calca || "";
+      document.getElementById("sapato").value = data.sapato || "";
+      document.getElementById("cor").value = data.cor || "";
+      document.getElementById("corRoupa").value = data.corRoupa || "";
+      if (data.avatar) {
+        avatarPreview.src = data.avatar;
+      }
+    };
+
+    // Função para salvar os dados (com debounce para evitar excesso de escritas)
+    const saveData = async () => {
+      if (!currentUser) return;
+      clearTimeout(saveTimeout);
+
+      saveTimeout = setTimeout(async () => {
+        const userId = currentUser.uid;
+        const dbRef = ref(database, `usuarios/${userId}`);
+        const formData = {
+          nome: document.getElementById("nome").value.trim(),
+          idade: document.getElementById("idade").value.trim(),
+          camiseta: document.getElementById("camiseta").value.trim(),
+          calca: document.getElementById("calca").value.trim(),
+          sapato: document.getElementById("sapato").value.trim(),
+          cor: document.getElementById("cor").value.trim(),
+          corRoupa: document.getElementById("corRoupa").value.trim(),
+          avatar: avatarPreview.src
+        };
+        try {
+          await set(dbRef, formData);
+          console.log("✅ Dados salvos automaticamente!");
+        } catch (error) {
+          console.error("Erro ao salvar:", error);
+        }
+      }, 1500); // Salva 1.5s após a última alteração
+    };
+
+    // Função para lidar com o upload do avatar
+    const handleAvatarUpload = async (file) => {
+      if (!currentUser || !file) return;
+      const userId = currentUser.uid;
+      const storagePath = `avatars/${userId}/${file.name}`;
+      const fileRef = storageRef(storage, storagePath);
+      try {
+        await uploadBytes(fileRef, file);
+        const avatarUrl = await getDownloadURL(fileRef);
+        avatarPreview.src = avatarUrl;
+        await saveData(); // Salva os dados, incluindo o novo avatar
+      } catch (error) {
+        console.error("Erro no upload do avatar:", error);
+        alert("Erro ao fazer upload do avatar.");
+      }
+    };
+
+    // Ponto de entrada: Monitora o estado de autenticação
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        const dbRef = ref(database, `usuarios/${user.uid}`);
+        const snapshot = await get(dbRef);
+
+        if (snapshot.exists()) {
+          loadUserData(snapshot.val());
+        }
+
+        // Configura o link do botão "Ver Meu Perfil"
+        viewProfileLink.href = `visualizar.html?uid=${user.uid}`;
+        
+        // Adiciona listeners de eventos somente após o usuário ser verificado
+        userForm.addEventListener('input', saveData);
+        trocarAvatarBtn.addEventListener("click", () => avatarUpload.click());
+        avatarUpload.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            avatarPreview.src = URL.createObjectURL(file); // Preview imediato
+            handleAvatarUpload(file);
+          }
+        });
+
+      } else {
+        currentUser = null;
+        alert("Você precisa estar logado para acessar esta página.");
+        window.location.href = "login.html";
+      }
+    });
+  </script>
+</body>
+</html>
+```
